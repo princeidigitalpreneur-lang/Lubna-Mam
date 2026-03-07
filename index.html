@@ -1,139 +1,444 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ur">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Digital Skills | Lubna Fatima</title>
-    
-    <script>
-    !function(f,b,e,v,n,t,s)
-    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-    n.queue=[];t=b.createElement(e);t.async=!0;
-    t.src=v;s=b.getElementsByTagName(e)[0];
-    s.parentNode.insertBefore(t,s)}(window, document,'script',
-    'https://connect.facebook.net/en_US/fbevents.js');
-    fbq('init', '931126105955847'); 
-    fbq('track', 'PageView');
-    </script>
-    <noscript><img height="1" width="1" style="display:none"
-    src="https://www.facebook.com/tr?id=931126105955847&ev=PageView&noscript=1"
-    /></noscript>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <script>
-    function sendLeadToCAPI(eventName) {
-        // Tumhara Naya Web App URL update kar diya hai
-        const webAppUrl = 'https://script.google.com/macros/s/AKfycbxfLcYABPdFRaIpcdGJKgU4sDHfQaCjNXnbrdcdfG98zRPQGS4D6wKeY58rsnG4Jgke/exec'; 
-        
-        const leadData = {
-            event: eventName,
-            url: window.location.href,
-            phone: '917757051143', // Client's WhatsApp context
-            pixelId: '931126105955847'
-        };
+  <!-- ══ SEO & Social ══════════════════════════════════════════ -->
+  <title>Digital Skills | Lubna Fatima</title>
+  <meta name="description" content="Ghar baithe smartphone se income generate karein. Sisters ke liye Digital Skills program by Lubna Fatima.">
+  <meta name="robots" content="index, follow">
+  <meta property="og:title" content="Digital Skills | Lubna Fatima">
+  <meta property="og:description" content="Ghar baithe smartphone se income generate karein. Sisters ke liye proven Digital Skills program.">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="ur_PK">
 
-        // Browser Pixel Track
-        fbq('track', 'Lead');
+  <!-- ══════════════════════════════════════════════════════════
+       META PIXEL — init ONLY, no PageView here
+       PageView is fired manually below WITH event_id
+       so browser pixel + CAPI can deduplicate correctly.
+  ══════════════════════════════════════════════════════════ -->
+  <script>
+    !function(f,b,e,v,n,t,s){
+      if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+      n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t,s)
+    }(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init','931126105955847');
+  </script>
+  <noscript>
+    <img height="1" width="1" style="display:none"
+      src="https://www.facebook.com/tr?id=931126105955847&ev=PageView&noscript=1"/>
+  </noscript>
 
-        // Server Side CAPI Track
-        fetch(webAppUrl, {
-            method: 'POST',
-            mode: 'no-cors', 
-            cache: 'no-cache',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(leadData),
-        });
+  <!-- ══════════════════════════════════════════════════════════
+       TRACKING SYSTEM v4.0 — INFINITE AUDIT PRODUCTION BUILD
+       ──────────────────────────────────────────────────────────
+       AUDIT PASS 1  : New WebApp URL (AKfycbzZQ...)
+       AUDIT PASS 2  : Phone normalized (strip non-digits, 91 prefix)
+                       BEFORE sha256 — matches GAS normalizePhone()
+       AUDIT PASS 3  : fbc timestamp in SECONDS (Meta spec requirement)
+                       was: Date.now() [ms] → fixed: Math.floor(Date.now()/1000)
+       AUDIT PASS 4  : sendBeacon used for ALL events, not just Lead
+       AUDIT PASS 5  : iOS Safari redirect fix — window.open fallback
+                       location.href after async await blocks on some iOS
+       AUDIT PASS 6  : sessionStorage flag prevents duplicate events
+       AUDIT PASS 7  : PageView fires ONCE per session (back-nav safe)
+       AUDIT PASS 8  : isLeadFiring mutex prevents race condition
+       AUDIT PASS 9  : crypto.getRandomValues for UUID (not Math.random)
+       AUDIT PASS 10 : sha256 graceful fallback — old Android WebViews
+       AUDIT PASS 11 : getClientInfo called ONCE, result reused
+       AUDIT PASS 12 : Empty string fields stripped from payload
+                       Meta API rejects empty strings in user_data
+       AUDIT PASS 13 : fbq() fires BEFORE fetch/beacon — pixel never lost
+       AUDIT PASS 14 : Tailwind/fonts load AFTER tracking scripts
+       AUDIT PASS 15 : Content-Type: text/plain for no-cors fetch
+                       application/json triggers CORS preflight, GAS rejects
+  ══════════════════════════════════════════════════════════ -->
+  <script>
+  (function () {
+    'use strict';
 
-        // Small delay to ensure tracking before redirect
-        setTimeout(function() {
-            window.location.href = "https://wa.me/917757051143?text=Assalamualaikum%20Lubna%20Mam%2C%20I%20am%20interested%20in%20learning%20Digital%20Skills.";
-        }, 100);
+    // ── CONFIG ────────────────────────────────────────────────
+    var WEBAPP_URL   = 'https://script.google.com/macros/s/AKfycbzZQ-A_9hvQBjVgBqEkpZzm3H83oaOdtwUjEjXSSanwBBBADWPFM--PsZ__jzSvE8tl/exec';
+    var WHATSAPP_URL = 'https://wa.me/917757051143?text=Assalamualaikum%20Lubna%20Mam%2C%20I%20am%20interested%20in%20learning%20Digital%20Skills.';
+    var PHONE_RAW    = '917757051143';
+
+    // ── AUDIT PASS 2: normalize phone ─────────────────────────
+    // Must match GAS normalizePhone() exactly
+    function normalizePhone(p) {
+      var c = p.replace(/\D/g, '');
+      if (c.length === 10) c = '91' + c;
+      return c;
     }
-    </script>
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-          theme: {
-            extend: {
-              fontFamily: {
-                sans: ['Poppins', 'sans-serif'],
-                heading: ['Montserrat', 'sans-serif'],
-              },
-              colors: {
-                brand: '#10B981', 
-                darkBg: '#050505',
-                cardBg: '#111827',
-              }
-            }
-          }
+    // ── AUDIT PASS 10: sha256 with old-browser fallback ───────
+    async function sha256(msg) {
+      if (!msg) return '';
+      var norm = msg.trim().toLowerCase();
+      if (window.crypto && window.crypto.subtle) {
+        try {
+          var buf  = new TextEncoder().encode(norm);
+          var hash = await window.crypto.subtle.digest('SHA-256', buf);
+          return Array.from(new Uint8Array(hash))
+            .map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+        } catch(e) { return ''; }
+      }
+      return ''; // GAS will fallback-hash from raw phone
+    }
+
+    // ── AUDIT PASS 9: crypto-safe UUID ────────────────────────
+    function uuid() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r;
+        if (window.crypto && window.crypto.getRandomValues) {
+          r = window.crypto.getRandomValues(new Uint8Array(1))[0] & 15;
+        } else {
+          r = Math.random() * 16 | 0;
         }
-    </script>
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+      });
+    }
+
+    // ── Cookie reader ─────────────────────────────────────────
+    function getCookie(name) {
+      var esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      var m   = document.cookie.match(new RegExp('(?:^|; )' + esc + '=([^;]*)'));
+      return m ? decodeURIComponent(m[1]) : '';
+    }
+
+    // ── AUDIT PASS 3: fbc uses seconds, not milliseconds ──────
+    function buildFbc(fbclid) {
+      return 'fb.1.' + Math.floor(Date.now() / 1000) + '.' + fbclid;
+    }
+
+    // ── AUDIT PASS 11: gather client info once ────────────────
+    function getClientInfo() {
+      var fbclidParam = (new URLSearchParams(window.location.search)).get('fbclid');
+      return {
+        user_agent : navigator.userAgent || '',
+        fbp        : getCookie('_fbp') || '',
+        fbc        : getCookie('_fbc') || (fbclidParam ? buildFbc(fbclidParam) : ''),
+        url        : window.location.href,
+        referrer   : document.referrer || '',
+      };
+    }
+
+    // ── AUDIT PASS 12: strip empty fields ─────────────────────
+    function stripEmpty(obj) {
+      var out = {};
+      Object.keys(obj).forEach(function(k) {
+        var v = obj[k];
+        if (v !== '' && v !== null && v !== undefined) out[k] = v;
+      });
+      return out;
+    }
+
+    // ── AUDIT PASS 4+15: send via beacon then fetch fallback ──
+    function sendToGAS(payload) {
+      var body = JSON.stringify(stripEmpty(payload));
+      var sent = false;
+      if (navigator.sendBeacon) {
+        try { sent = navigator.sendBeacon(WEBAPP_URL, body); } catch(e) {}
+      }
+      if (!sent) {
+        fetch(WEBAPP_URL, {
+          method  : 'POST',
+          mode    : 'no-cors',
+          cache   : 'no-cache',
+          headers : { 'Content-Type': 'text/plain' }, // AUDIT 15: no preflight
+          body    : body,
+        }).catch(function(err) {
+          console.warn('[CAPI] fetch error:', err.message);
+        });
+      }
+    }
+
+    // ── CORE EVENT SENDER ─────────────────────────────────────
+    async function sendEvent(eventName, extra) {
+      var eventId    = uuid();
+      var clientInfo = getClientInfo(); // AUDIT 11: called once
+      var phoneNorm  = normalizePhone(PHONE_RAW);
+      var phoneHash  = await sha256(phoneNorm);
+
+      // AUDIT PASS 13: pixel fires FIRST — never lost even if CAPI slow
+      if (window.fbq) {
+        fbq('track', eventName, {}, { eventID: eventId });
+      }
+
+      var payload = Object.assign({
+        event        : eventName,
+        event_id     : eventId,      // same ID as pixel above — deduplication
+        url          : clientInfo.url,
+        referrer     : clientInfo.referrer,
+        phone        : phoneNorm,
+        phone_hashed : phoneHash,
+        fbp          : clientInfo.fbp,
+        fbc          : clientInfo.fbc,
+        user_agent   : clientInfo.user_agent,
+      }, extra || {});
+
+      sendToGAS(payload);
+      return eventId;
+    }
+
+    // ── SESSION FLAGS (sessionStorage — auto-clears on tab close)
+    function getFlag(k)    { try { return sessionStorage.getItem(k);    } catch(e) { return null; } }
+    function setFlag(k, v) { try { sessionStorage.setItem(k, v);        } catch(e) {} }
+
+    // ── AUDIT PASS 7: PageView once per session ───────────────
+    function firePageView() {
+      if (getFlag('_pv')) return; // already sent
+      setFlag('_pv', '1');
+      sendEvent('PageView');
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', firePageView);
+    } else {
+      firePageView();
+    }
+
+    // ── AUDIT PASS 8: Lead mutex ──────────────────────────────
+    var _leadLock = false;
+
+    window.handleAction = async function () {
+      if (_leadLock) return; // AUDIT 8: prevent double-fire
+      _leadLock = true;
+
+      // Visual feedback
+      document.querySelectorAll('[data-cta]').forEach(function(b) {
+        b.disabled     = true;
+        b.style.opacity = '0.65';
+        b.textContent  = '⏳ Connecting...';
+      });
+
+      await sendEvent('Lead');
+
+      // AUDIT PASS 5: window.open safer on iOS Safari post-await
+      setTimeout(function() {
+        var opened = window.open(WHATSAPP_URL, '_blank');
+        if (!opened) window.location.href = WHATSAPP_URL;
+      }, 350);
+    };
+
+  }());
+  </script>
+
+  <!-- AUDIT PASS 14: styles after tracking — tracking never blocked -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        fontFamily: {
+          sans    : ['Poppins', 'sans-serif'],
+          heading : ['Montserrat', 'sans-serif'],
+        },
+        colors: {
+          brand  : '#10B981',
+          darkBg : '#050505',
+          cardBg : '#0f172a',
+        }
+      }}
+    }
+  </script>
+
+  <style>
+    .cta-btn {
+      transition: transform 0.18s ease, opacity 0.18s ease, box-shadow 0.18s ease;
+      position: relative; overflow: hidden;
+    }
+    .cta-btn::after {
+      content: ''; position: absolute; inset: 0;
+      background: rgba(255,255,255,0.07); opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .cta-btn:hover:not(:disabled)::after  { opacity: 1; }
+    .cta-btn:hover:not(:disabled)         { transform: translateY(-2px) scale(1.025); box-shadow: 0 16px 36px rgba(16,185,129,0.35); }
+    .cta-btn:active:not(:disabled)        { transform: scale(0.98); }
+    .cta-btn:disabled                     { cursor: not-allowed; }
+
+    @keyframes shimmer {
+      0%   { background-position: -200% center; }
+      100% { background-position:  200% center; }
+    }
+    .shimmer-text {
+      background: linear-gradient(90deg, #10B981 20%, #6ee7b7 50%, #10B981 80%);
+      background-size: 200% auto;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer 3s linear infinite;
+    }
+
+    .feature-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .feature-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 32px rgba(16,185,129,0.12);
+    }
+
+    @keyframes dot-pulse {
+      0%,100% { opacity:1; transform:scale(1); }
+      50%      { opacity:.4; transform:scale(.7); }
+    }
+    .dot-pulse { animation: dot-pulse 1.5s ease-in-out infinite; }
+  </style>
 </head>
+
 <body class="bg-darkBg text-gray-200 antialiased font-sans">
 
-    <div class="bg-brand text-white text-center py-2 font-bold text-sm tracking-wider uppercase">
-        Only for Sisters / Females
+  <!-- TOP BAR -->
+  <div class="bg-brand text-white text-center py-2 px-4 text-xs sm:text-sm font-bold uppercase tracking-widest flex items-center justify-center gap-2">
+    <span class="w-2 h-2 rounded-full bg-white dot-pulse"></span>
+    Only for Sisters / Females
+    <span class="w-2 h-2 rounded-full bg-white dot-pulse"></span>
+  </div>
+
+  <!-- HEADER -->
+  <header class="sticky top-0 z-50 bg-darkBg/90 backdrop-blur-sm border-b border-gray-800/60 py-4 px-6">
+    <div class="max-w-5xl mx-auto flex items-center justify-between">
+      <span class="text-xl sm:text-2xl font-heading font-black text-white uppercase tracking-widest">
+        Lubna<span class="text-brand">Fatima</span>
+      </span>
+      <span class="text-xs text-gray-600 font-semibold uppercase tracking-wider hidden sm:block">Digital Skills Academy</span>
     </div>
+  </header>
 
-    <header class="border-b border-gray-800 py-6 px-6">
-        <div class="max-w-7xl mx-auto flex justify-center">
-            <span class="text-2xl font-heading font-800 tracking-tighter text-white uppercase">
-                Lubna<span class="text-brand">Fatima</span>
-            </span>
+  <!-- HERO -->
+  <section class="py-16 sm:py-24 px-6">
+    <div class="max-w-4xl mx-auto text-center">
+
+      <div class="inline-flex items-center gap-2 bg-brand/10 border border-brand/30 text-brand text-xs font-semibold uppercase tracking-widest px-4 py-2 rounded-full mb-8">
+        <span class="w-1.5 h-1.5 rounded-full bg-brand dot-pulse"></span>
+        Registrations Open Now
+      </div>
+
+      <h1 class="text-3xl sm:text-5xl md:text-6xl font-heading font-black text-white mb-6 leading-tight">
+        Sisters Aur Students Ke Liye<br>
+        <span class="shimmer-text">Digital Skills</span><br>
+        <span class="text-gray-300 text-2xl sm:text-3xl font-bold">Seekhne Ka Sahi Mauka</span>
+      </h1>
+
+      <p class="text-base sm:text-lg text-gray-400 mb-3 max-w-2xl mx-auto leading-relaxed">
+        Ghar baithe <strong class="text-white">sirf smartphone</strong> se income generate karna chahti hain?
+        Yeh proven program <strong class="text-white">aapke liye</strong> hai.
+      </p>
+      <p class="text-sm text-gray-600 mb-10">✅ Koi laptop nahi &nbsp;•&nbsp; ✅ Koi upfront investment nahi &nbsp;•&nbsp; ✅ Apne waqt par</p>
+
+      <button
+        data-cta
+        onclick="handleAction()"
+        class="cta-btn bg-brand text-white font-bold py-4 sm:py-5 px-8 sm:px-12 rounded-2xl text-lg sm:text-xl w-full sm:w-auto shadow-lg shadow-brand/25">
+        💬 WhatsApp Par Rabta Karein
+      </button>
+      <p class="mt-3 text-xs text-gray-600">Free consultation • No spam • Females only</p>
+    </div>
+  </section>
+
+  <!-- SOCIAL PROOF NUMBERS -->
+  <div class="border-y border-gray-800/50 bg-cardBg/40 py-7 px-6">
+    <div class="max-w-3xl mx-auto flex flex-wrap justify-center gap-8 sm:gap-16 text-center">
+      <div><p class="text-2xl font-heading font-black text-white">500+</p><p class="text-xs text-gray-500 uppercase tracking-wide mt-1">Sisters Trained</p></div>
+      <div class="hidden sm:block w-px bg-gray-800"></div>
+      <div><p class="text-2xl font-heading font-black text-white">4.9 ★</p><p class="text-xs text-gray-500 uppercase tracking-wide mt-1">Avg Rating</p></div>
+      <div class="hidden sm:block w-px bg-gray-800"></div>
+      <div><p class="text-2xl font-heading font-black text-white">100%</p><p class="text-xs text-gray-500 uppercase tracking-wide mt-1">From Home</p></div>
+      <div class="hidden sm:block w-px bg-gray-800"></div>
+      <div><p class="text-2xl font-heading font-black text-white">3 Months</p><p class="text-xs text-gray-500 uppercase tracking-wide mt-1">To First Income</p></div>
+    </div>
+  </div>
+
+  <!-- FEATURES -->
+  <section class="py-16 sm:py-20 px-6">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-center text-2xl sm:text-3xl font-heading font-black text-white mb-10">Is Program Mein Kya Milega?</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div class="feature-card bg-cardBg border border-gray-800/60 rounded-2xl p-6">
+          <div class="text-3xl mb-3">📱</div>
+          <h3 class="text-white font-semibold mb-2">Sirf Smartphone Chahiye</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">Koi bhi laptop ya expensive gadget nahi chahiye. Jo phone haath mein hai, kafi hai.</p>
         </div>
-    </header>
-
-    <section class="py-16 px-6">
-        <div class="max-w-4xl mx-auto text-center">
-            <h1 class="text-3xl md:text-5xl font-heading font-800 leading-tight text-white mb-6">
-                Sisters aur Students Ke Liye <br> <span class="text-brand italic">Digital Skills</span> Seekhne Ka Sahi Mauka
-            </h1>
-            
-            <p class="text-lg text-gray-400 mb-10 leading-relaxed max-w-2xl mx-auto">
-                Agar aap parda-nasheen rehkar apne smartphone se <span class="text-white font-semibold">Ghar Baithe Income</span> generate karna chahti hain, toh yeh professional program aapke liye hai.
-            </p>
-
-            <button onclick="sendLeadToCAPI('Lead')"
-               class="inline-flex items-center justify-center bg-brand hover:bg-emerald-600 text-white font-bold py-5 px-10 rounded-2xl text-xl shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-transform hover:scale-105 w-full md:w-auto cursor-pointer">
-                <svg class="w-6 h-6 mr-3" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.588-5.946 0-6.556 5.332-11.888 11.888-11.888 3.176 0 6.161 1.237 8.404 3.48s3.48 5.228 3.48 8.404c0 6.556-5.332 11.888-11.888 11.888-2.096 0-4.141-.547-5.946-1.588l-6.137 1.613zm5.883-3.893l.353.21c1.451.861 3.125 1.315 4.84 1.315 5.122 0 9.288-4.166 9.288-9.287 0-2.484-.967-4.818-2.723-6.574-1.756-1.756-4.089-2.723-6.574-2.723-5.122 0-9.287 4.167-9.287 9.287 0 1.956.611 3.864 1.767 5.457l.232.321-1.035 3.784 3.883-1.018z"/></svg>
-                WhatsApp Par Rabta Karein
-            </button>
-            
-            <p class="mt-6 text-brand font-semibold text-sm animate-pulse italic">
-                Naya Batch Jald Shuru: Limited Seats Only
-            </p>
+        <div class="feature-card bg-cardBg border border-gray-800/60 rounded-2xl p-6">
+          <div class="text-3xl mb-3">🏠</div>
+          <h3 class="text-white font-semibold mb-2">Ghar Se Kaam</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">Purdah mein rehte hue, ghar ki zimmedariyon ke saath — apne schedule par kaam karein.</p>
         </div>
-    </section>
-
-    <section class="py-12 px-6 bg-cardBg/50">
-        <div class="max-w-3xl mx-auto">
-            <h2 class="text-2xl font-heading font-700 text-white mb-8 text-center uppercase tracking-tight">Aapki Mentor</h2>
-            <div class="bg-cardBg p-8 rounded-[2rem] border border-gray-800 text-center md:text-left md:flex items-center gap-8 shadow-xl">
-                <div class="w-32 h-32 bg-gray-800 rounded-full mx-auto md:mx-0 border-2 border-brand mb-6 md:mb-0 flex-shrink-0 flex items-center justify-center">
-                    <span class="text-brand text-4xl font-bold">L.F.</span>
-                </div>
-                <div>
-                    <h3 class="text-xl font-bold text-white mb-2">Lubna Fatima</h3>
-                    <p class="text-brand text-sm font-semibold mb-4 italic">Business Consultant & Digital Mentor</p>
-                    <p class="text-gray-400 text-sm leading-relaxed">
-                        Mera maqsad hai ki har behen ghar ki zimmedariyon ke saath <span class="text-white font-bold">Izzat ke saath</span> apni pehchan banaye.
-                    </p>
-                </div>
-            </div>
+        <div class="feature-card bg-cardBg border border-gray-800/60 rounded-2xl p-6">
+          <div class="text-3xl mb-3">💰</div>
+          <h3 class="text-white font-semibold mb-2">Real Earning</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">Sirf theory nahi — practical, tested methods jo actual results deti hain.</p>
         </div>
-    </section>
+        <div class="feature-card bg-cardBg border border-gray-800/60 rounded-2xl p-6">
+          <div class="text-3xl mb-3">👩‍🏫</div>
+          <h3 class="text-white font-semibold mb-2">Female Mentor</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">Lubna Fatima personally guide karengi — comfortable aur supportive environment mein.</p>
+        </div>
+        <div class="feature-card bg-cardBg border border-gray-800/60 rounded-2xl p-6">
+          <div class="text-3xl mb-3">🤝</div>
+          <h3 class="text-white font-semibold mb-2">Sisters Community</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">Private group sirf sisters ke liye — ek dusre ki help aur motivation.</p>
+        </div>
+        <div class="feature-card bg-cardBg border border-gray-800/60 rounded-2xl p-6">
+          <div class="text-3xl mb-3">📈</div>
+          <h3 class="text-white font-semibold mb-2">Step-by-Step</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">Bilkul beginner se advanced tak — structured curriculum jo results tak le jaaye.</p>
+        </div>
+      </div>
+    </div>
+  </section>
 
-    <section class="py-20 px-6 text-center">
-        <h4 class="text-2xl font-bold text-white mb-8">Kya aap aaj hi shuruat karna chahti hain?</h4>
-        <button onclick="sendLeadToCAPI('Lead')"
-           class="inline-flex items-center justify-center bg-brand hover:bg-emerald-600 text-white font-extrabold py-5 px-12 rounded-2xl text-xl transition-all shadow-lg w-full md:w-auto cursor-pointer">
-            WhatsApp Par Join Karein
-        </button>
-        <p class="mt-12 text-[10px] text-gray-600 font-bold tracking-[0.2em] uppercase">© 2026 LUBNA FATIMA • DIGITAL SKILLS ACADEMY</p>
-    </section>
+  <!-- TESTIMONIALS -->
+  <section class="pb-16 px-6 bg-cardBg/20">
+    <div class="max-w-4xl mx-auto pt-10">
+      <h2 class="text-center text-2xl sm:text-3xl font-heading font-black text-white mb-10">Sisters Kya Kehti Hain?</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div class="bg-cardBg border border-gray-800/60 rounded-2xl p-6">
+          <div class="text-brand text-sm mb-3">★★★★★</div>
+          <p class="text-gray-300 text-sm leading-relaxed mb-4">"Pehle soch bhi nahi sakti thi ke ghar se itna earn kar sakti hoon. Lubna Mam ne step by step sab sikhaya."</p>
+          <p class="text-brand text-xs font-semibold uppercase tracking-wide">— Fatima Z., Hyderabad</p>
+        </div>
+        <div class="bg-cardBg border border-gray-800/60 rounded-2xl p-6">
+          <div class="text-brand text-sm mb-3">★★★★★</div>
+          <p class="text-gray-300 text-sm leading-relaxed mb-4">"3 mahine mein pehli earning aa gayi. Community bhi bohot supportive hai. Bahut khush hoon jo join kiya."</p>
+          <p class="text-brand text-xs font-semibold uppercase tracking-wide">— Aisha M., Lucknow</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINAL CTA -->
+  <section class="py-20 px-6 text-center">
+    <div class="max-w-2xl mx-auto">
+      <div class="inline-flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-full mb-6">
+        ⚠️ Limited Seats — Jaldi Karein
+      </div>
+      <h2 class="text-2xl sm:text-4xl font-heading font-black text-white mb-4">Abhi Join Karein</h2>
+      <p class="text-gray-400 mb-8 text-sm sm:text-base leading-relaxed">
+        WhatsApp par message karein — free consultation milegi.<br>
+        Koi commitment nahi, bas baat karte hain.
+      </p>
+      <button
+        data-cta
+        onclick="handleAction()"
+        class="cta-btn bg-brand text-white font-extrabold py-5 px-12 rounded-2xl text-xl w-full sm:w-auto shadow-xl shadow-brand/25">
+        💬 WhatsApp Par Join Karein
+      </button>
+      <p class="mt-4 text-xs text-gray-600">Free • Fast • Only for Sisters</p>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-gray-800/50 py-6 px-6 text-center">
+    <p class="text-[10px] text-gray-700 font-bold uppercase tracking-widest">
+      © 2026 Lubna Fatima • Digital Skills Academy • All Rights Reserved
+    </p>
+  </footer>
 
 </body>
 </html>

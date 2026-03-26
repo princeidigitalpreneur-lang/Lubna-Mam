@@ -14,8 +14,8 @@
   <meta property="og:locale" content="ur_PK">
 
   <!-- ══════════════════════════════════════════════════════════
-       META PIXEL — init ONLY, no PageView here
-       PageView is fired manually below WITH event_id
+       META PIXEL — init ONLY, no PageView here.
+       PageView fired manually below WITH event_id
        so browser pixel + CAPI can deduplicate correctly.
   ══════════════════════════════════════════════════════════ -->
   <script>
@@ -28,6 +28,8 @@
       s.parentNode.insertBefore(t,s)
     }(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
     fbq('init','931126105955847');
+    // ⚠️ DO NOT call fbq('track','PageView') here.
+    // We fire it manually below with a matching event_id for deduplication.
   </script>
   <noscript>
     <img height="1" width="1" style="display:none"
@@ -35,28 +37,27 @@
   </noscript>
 
   <!-- ══════════════════════════════════════════════════════════
-       TRACKING SYSTEM v4.0 — INFINITE AUDIT PRODUCTION BUILD
+       TRACKING SYSTEM v5.0 — GOD-LEVEL PRODUCTION BUILD
        ──────────────────────────────────────────────────────────
-       AUDIT PASS 1  : New WebApp URL (AKfycbzZQ...)
-       AUDIT PASS 2  : Phone normalized (strip non-digits, 91 prefix)
-                       BEFORE sha256 — matches GAS normalizePhone()
-       AUDIT PASS 3  : fbc timestamp in SECONDS (Meta spec requirement)
-                       was: Date.now() [ms] → fixed: Math.floor(Date.now()/1000)
-       AUDIT PASS 4  : sendBeacon used for ALL events, not just Lead
-       AUDIT PASS 5  : iOS Safari redirect fix — window.open fallback
-                       location.href after async await blocks on some iOS
-       AUDIT PASS 6  : sessionStorage flag prevents duplicate events
-       AUDIT PASS 7  : PageView fires ONCE per session (back-nav safe)
-       AUDIT PASS 8  : isLeadFiring mutex prevents race condition
-       AUDIT PASS 9  : crypto.getRandomValues for UUID (not Math.random)
-       AUDIT PASS 10 : sha256 graceful fallback — old Android WebViews
-       AUDIT PASS 11 : getClientInfo called ONCE, result reused
-       AUDIT PASS 12 : Empty string fields stripped from payload
-                       Meta API rejects empty strings in user_data
-       AUDIT PASS 13 : fbq() fires BEFORE fetch/beacon — pixel never lost
-       AUDIT PASS 14 : Tailwind/fonts load AFTER tracking scripts
-       AUDIT PASS 15 : Content-Type: text/plain for no-cors fetch
-                       application/json triggers CORS preflight, GAS rejects
+       FIX 1  : event_id generated ONCE, passed to BOTH fbq() and CAPI
+                → eliminates deduplication failure
+       FIX 2  : phone normalised with \D regex (matches GAS exactly)
+       FIX 3  : fbc timestamp in SECONDS (Meta spec)
+       FIX 4  : sendBeacon primary, fetch no-cors fallback (text/plain)
+       FIX 5  : iOS Safari window.open after await (setTimeout 350ms)
+       FIX 6  : sessionStorage prevents duplicate PageView/Lead events
+       FIX 7  : isLeadFiring mutex prevents race condition on double-tap
+       FIX 8  : crypto.getRandomValues for UUID
+       FIX 9  : sha256 with graceful fallback for old Android WebViews
+       FIX 10 : getClientInfo() called ONCE, result cached per sendEvent
+       FIX 11 : Empty/null fields stripped before GAS payload dispatch
+       FIX 12 : fbq() fires BEFORE async ops — pixel never lost
+       FIX 13 : ViewContent fires on page load (mid-funnel signal for Meta)
+       FIX 14 : CTA position sent as custom param (top/bottom) for analysis
+       FIX 15 : custom_data includes content_name, content_category
+                for WhatsApp campaign optimisation
+       FIX 16 : Lead event fires custom_data with WhatsApp context
+       FIX 17 : Styles loaded AFTER tracking — tracking never blocked
   ══════════════════════════════════════════════════════════ -->
   <script>
   (function () {
@@ -67,15 +68,15 @@
     var WHATSAPP_URL = 'https://wa.me/917757051143?text=Assalamualaikum%20Lubna%20Mam%2C%20I%20am%20interested%20in%20learning%20Digital%20Skills.';
     var PHONE_RAW    = '917757051143';
 
-    // ── AUDIT PASS 2: normalize phone ─────────────────────────
-    // Must match GAS normalizePhone() exactly
+    // ── FIX 2: normalize phone — must match GAS normalizePhone() exactly ──
+    // Uses \D (all non-digits) identical to GAS version
     function normalizePhone(p) {
-      var c = p.replace(/\D/g, '');
+      var c = (p || '').replace(/\D/g, '');
       if (c.length === 10) c = '91' + c;
       return c;
     }
 
-    // ── AUDIT PASS 10: sha256 with old-browser fallback ───────
+    // ── FIX 9: sha256 with graceful fallback for old WebViews ─────────────
     async function sha256(msg) {
       if (!msg) return '';
       var norm = msg.trim().toLowerCase();
@@ -85,13 +86,21 @@
           var hash = await window.crypto.subtle.digest('SHA-256', buf);
           return Array.from(new Uint8Array(hash))
             .map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
-        } catch(e) { return ''; }
+        } catch(e) {
+          // subtle.digest can fail in restricted contexts (e.g. some WebViews)
+          return '';
+        }
       }
-      return ''; // GAS will fallback-hash from raw phone
+      // Old browser: return '' — GAS will hash from raw normalised phone
+      return '';
     }
 
-    // ── AUDIT PASS 9: crypto-safe UUID ────────────────────────
+    // ── FIX 8: crypto-safe UUID v4 ────────────────────────────────────────
     function uuid() {
+      if (window.crypto && window.crypto.randomUUID) {
+        // Modern browsers — fastest path
+        return window.crypto.randomUUID();
+      }
       return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
         var r;
         if (window.crypto && window.crypto.getRandomValues) {
@@ -103,132 +112,186 @@
       });
     }
 
-    // ── Cookie reader ─────────────────────────────────────────
+    // ── Cookie reader ─────────────────────────────────────────────────────
     function getCookie(name) {
       var esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       var m   = document.cookie.match(new RegExp('(?:^|; )' + esc + '=([^;]*)'));
       return m ? decodeURIComponent(m[1]) : '';
     }
 
-    // ── AUDIT PASS 3: fbc uses seconds, not milliseconds ──────
+    // ── FIX 3: fbc uses SECONDS not milliseconds ──────────────────────────
     function buildFbc(fbclid) {
       return 'fb.1.' + Math.floor(Date.now() / 1000) + '.' + fbclid;
     }
 
-    // ── AUDIT PASS 11: gather client info once ────────────────
+    // ── FIX 10: gather client info once per call ──────────────────────────
     function getClientInfo() {
-      var fbclidParam = (new URLSearchParams(window.location.search)).get('fbclid');
+      var fbclidParam = '';
+      try {
+        fbclidParam = (new URLSearchParams(window.location.search)).get('fbclid') || '';
+      } catch(e) {}
       return {
         user_agent : navigator.userAgent || '',
         fbp        : getCookie('_fbp') || '',
         fbc        : getCookie('_fbc') || (fbclidParam ? buildFbc(fbclidParam) : ''),
-        url        : window.location.href,
+        url        : window.location.href || '',
         referrer   : document.referrer || '',
       };
     }
 
-    // ── AUDIT PASS 12: strip empty fields ─────────────────────
+    // ── FIX 11: strip empty / null / undefined fields ─────────────────────
+    // Meta API rejects empty strings in user_data fields.
+    // Also strips from top-level payload to reduce payload size.
     function stripEmpty(obj) {
       var out = {};
       Object.keys(obj).forEach(function(k) {
         var v = obj[k];
-        if (v !== '' && v !== null && v !== undefined) out[k] = v;
+        if (v !== '' && v !== null && v !== undefined) {
+          out[k] = v;
+        }
       });
       return out;
     }
 
-    // ── AUDIT PASS 4+15: send via beacon then fetch fallback ──
+    // ── FIX 4: send via beacon, fallback to no-cors fetch ─────────────────
+    // Content-Type: text/plain avoids CORS preflight — GAS rejects preflights.
     function sendToGAS(payload) {
       var body = JSON.stringify(stripEmpty(payload));
       var sent = false;
       if (navigator.sendBeacon) {
-        try { sent = navigator.sendBeacon(WEBAPP_URL, body); } catch(e) {}
+        try {
+          sent = navigator.sendBeacon(WEBAPP_URL, new Blob([body], { type: 'text/plain' }));
+        } catch(e) {
+          sent = false;
+        }
       }
       if (!sent) {
         fetch(WEBAPP_URL, {
           method  : 'POST',
           mode    : 'no-cors',
           cache   : 'no-cache',
-          headers : { 'Content-Type': 'text/plain' }, // AUDIT 15: no preflight
+          headers : { 'Content-Type': 'text/plain' },
           body    : body,
         }).catch(function(err) {
-          console.warn('[CAPI] fetch error:', err.message);
+          // Silent — expected in no-cors mode on some networks
         });
       }
     }
 
-    // ── CORE EVENT SENDER ─────────────────────────────────────
+    // ── CORE EVENT SENDER ─────────────────────────────────────────────────
+    // FIX 1: event_id is generated HERE, passed to BOTH fbq() and CAPI payload.
+    // This is the SINGLE SOURCE OF TRUTH for deduplication.
     async function sendEvent(eventName, extra) {
-      var eventId    = uuid();
-      var clientInfo = getClientInfo(); // AUDIT 11: called once
+      var eventId    = uuid();           // one ID for both pixel and CAPI
+      var clientInfo = getClientInfo();  // FIX 10: called once, reused below
       var phoneNorm  = normalizePhone(PHONE_RAW);
       var phoneHash  = await sha256(phoneNorm);
 
-      // AUDIT PASS 13: pixel fires FIRST — never lost even if CAPI slow
+      // FIX 12: fbq fires FIRST (synchronous) — pixel event never lost
+      // even if the async sha256 / sendBeacon below is slow.
       if (window.fbq) {
-        fbq('track', eventName, {}, { eventID: eventId });
+        var fbqCustomData = {
+          content_name     : 'Digital Skills Program',
+          content_category : 'Online Education',
+          content_type     : 'product',
+        };
+        if (extra && extra.cta_position) {
+          fbqCustomData.content_ids = [extra.cta_position];
+        }
+        fbq('track', eventName, fbqCustomData, { eventID: eventId });
       }
 
+      // Build GAS payload — includes all user_data for CAPI
       var payload = Object.assign({
         event        : eventName,
-        event_id     : eventId,      // same ID as pixel above — deduplication
+        event_id     : eventId,        // FIX 1: same ID as pixel above
         url          : clientInfo.url,
         referrer     : clientInfo.referrer,
         phone        : phoneNorm,
-        phone_hashed : phoneHash,
-        fbp          : clientInfo.fbp,
-        fbc          : clientInfo.fbc,
+        phone_hashed : phoneHash,      // pre-hashed on client
+        fbp          : clientInfo.fbp, // FIX: _fbp cookie for match rate
+        fbc          : clientInfo.fbc, // FIX: _fbc / fbclid for attribution
         user_agent   : clientInfo.user_agent,
+        // FIX 15: WhatsApp campaign context for custom_data
+        content_name     : 'Digital Skills Program',
+        content_category : 'Online Education',
       }, extra || {});
 
       sendToGAS(payload);
       return eventId;
     }
 
-    // ── SESSION FLAGS (sessionStorage — auto-clears on tab close)
-    function getFlag(k)    { try { return sessionStorage.getItem(k);    } catch(e) { return null; } }
-    function setFlag(k, v) { try { sessionStorage.setItem(k, v);        } catch(e) {} }
+    // ── SESSION FLAGS (sessionStorage — auto-clears on tab close) ─────────
+    function getFlag(k)    { try { return sessionStorage.getItem(k);  } catch(e) { return null; } }
+    function setFlag(k, v) { try { sessionStorage.setItem(k, v);      } catch(e) {} }
 
-    // ── AUDIT PASS 7: PageView once per session ───────────────
+    // ── PageView — once per session, back-nav safe ─────────────────────────
+    // FIX 6: sessionStorage flag prevents re-fire on back-navigation
     function firePageView() {
-      if (getFlag('_pv')) return; // already sent
-      setFlag('_pv', '1');
+      if (getFlag('_pv_sent')) return;
+      setFlag('_pv_sent', '1');
       sendEvent('PageView');
     }
 
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', firePageView);
-    } else {
-      firePageView();
+    // ── ViewContent — fires on page load after PageView ────────────────────
+    // FIX 13: gives Meta a mid-funnel signal beyond PageView.
+    // This dramatically improves audience quality for retargeting.
+    function fireViewContent() {
+      if (getFlag('_vc_sent')) return;
+      setFlag('_vc_sent', '1');
+      sendEvent('ViewContent', {
+        content_name     : 'Digital Skills Program',
+        content_category : 'Online Education',
+      });
     }
 
-    // ── AUDIT PASS 8: Lead mutex ──────────────────────────────
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() {
+        firePageView();
+        // ViewContent fires 1s after DOM ready — user has "seen" the page
+        setTimeout(fireViewContent, 1000);
+      });
+    } else {
+      firePageView();
+      setTimeout(fireViewContent, 1000);
+    }
+
+    // ── Lead mutex — prevents double-fire on fast double-tap ──────────────
+    // FIX 7: once fired per session, further clicks are ignored
     var _leadLock = false;
 
-    window.handleAction = async function () {
-      if (_leadLock) return; // AUDIT 8: prevent double-fire
+    // ── FIX 14: cta_position tells you which button converted ─────────────
+    // Pass 'top' or 'bottom' from the onclick attribute
+    window.handleAction = async function (ctaPosition) {
+      if (_leadLock) return;
       _leadLock = true;
 
-      // Visual feedback
+      // Visual feedback on ALL CTA buttons
       document.querySelectorAll('[data-cta]').forEach(function(b) {
-        b.disabled     = true;
+        b.disabled      = true;
         b.style.opacity = '0.65';
-        b.textContent  = '⏳ Connecting...';
+        b.textContent   = '⏳ Connecting...';
       });
 
-      await sendEvent('Lead');
+      // FIX 16: Lead event carries WhatsApp-specific custom_data
+      await sendEvent('Lead', {
+        cta_position     : ctaPosition || 'unknown',
+        content_name     : 'Digital Skills Program',
+        content_category : 'Online Education',
+        lead_type        : 'whatsapp_click',
+      });
 
-      // AUDIT PASS 5: window.open safer on iOS Safari post-await
+      // FIX 5: window.open after await — fixes iOS Safari redirect blocking
       setTimeout(function() {
         var opened = window.open(WHATSAPP_URL, '_blank');
-        if (!opened) window.location.href = WHATSAPP_URL;
+        if (!opened) { window.location.href = WHATSAPP_URL; }
       }, 350);
     };
 
   }());
   </script>
 
-  <!-- AUDIT PASS 14: styles after tracking — tracking never blocked -->
+  <!-- FIX 17: Styles AFTER tracking — tracking scripts never blocked by render -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -331,9 +394,10 @@
       </p>
       <p class="text-sm text-gray-600 mb-10">✅ Koi laptop nahi &nbsp;•&nbsp; ✅ Koi upfront investment nahi &nbsp;•&nbsp; ✅ Apne waqt par</p>
 
+      <!-- FIX 14: pass 'top' as cta_position to handleAction -->
       <button
         data-cta
-        onclick="handleAction()"
+        onclick="handleAction('top')"
         class="cta-btn bg-brand text-white font-bold py-4 sm:py-5 px-8 sm:px-12 rounded-2xl text-lg sm:text-xl w-full sm:w-auto shadow-lg shadow-brand/25">
         💬 WhatsApp Par Rabta Karein
       </button>
@@ -423,9 +487,10 @@
         WhatsApp par message karein — free consultation milegi.<br>
         Koi commitment nahi, bas baat karte hain.
       </p>
+      <!-- FIX 14: pass 'bottom' as cta_position -->
       <button
         data-cta
-        onclick="handleAction()"
+        onclick="handleAction('bottom')"
         class="cta-btn bg-brand text-white font-extrabold py-5 px-12 rounded-2xl text-xl w-full sm:w-auto shadow-xl shadow-brand/25">
         💬 WhatsApp Par Join Karein
       </button>

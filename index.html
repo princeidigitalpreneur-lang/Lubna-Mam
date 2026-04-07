@@ -28,7 +28,12 @@ n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];
 s.parentNode.insertBefore(t,s)}(window, document,'script',
 'https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', '931126105955847');
+// FIX-DUPPHONE: Pass explicit empty advanced matching + autoConfig:false
+// to prevent Meta auto-injecting business page phone into all Pixel events.
+// The 'duplicate client Phone numbers' diagnostic on ViewContent is caused
+// by Facebook auto-advanced-matching pulling the business phone number and
+// stamping it as ph on every fbq() event including ViewContent.
+fbq('init', '931126105955847', {}, { autoConfig: false });
 fbq('track', 'PageView');
 fbq('track', 'ViewContent', {
   content_name: 'Lubna Fatima Landing Page',
@@ -947,7 +952,7 @@ footer{
   //  CONFIG
   // ═══════════════════════════════════════════════════════════════════
   var CFG = {
-    GAS_URL  : 'https://script.google.com/macros/s/AKfycbxgnFmRLt09IuZWkui1-jXysLPYGAPspdYxrxE6UpTa7TlhuFOqF8FUySu8QUvkJLa8/exec',
+    GAS_URL  : 'https://script.google.com/macros/s/AKfycbzwbvouqGIAKW3O-uAiFPuvn06gSQXhTTyJGqxUuya626_K6EVjrWLq0phJdnpmH3dS/exec',
     WA_URL   : 'https://wa.me/917757051143?text=Hi%20I%20want%20to%20start%20earning',
     VERSION  : '8.1',
 

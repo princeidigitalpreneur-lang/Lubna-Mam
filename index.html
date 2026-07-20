@@ -33,7 +33,7 @@ s.parentNode.insertBefore(t,s)}(window, document,'script',
 // The 'duplicate client Phone numbers' diagnostic on ViewContent is caused
 // by Facebook auto-advanced-matching pulling the business phone number and
 // stamping it as ph on every fbq() event including ViewContent.
-fbq('init', '1514243160478002', {}, { autoConfig: false });
+fbq('init', '1561758035693379', {}, { autoConfig: false });
 fbq('track', 'PageView');
 fbq('track', 'ViewContent', {
   content_name: 'Lubna Fatima Landing Page',
@@ -1002,7 +1002,7 @@ footer{
   // Build fbc from raw fbclid when cookie is absent (FIX-3)
   // Format: fb.{subdomainIndex}.{creationTime}.{fbclid}
   // subdomainIndex: 1 for www, 2 for subdomain (use 1 as safe default)
-  var PAGE_LOAD_TS = Math.floor(Date.now() / 1000); // capture at script load
+  var PAGE_LOAD_TS = Date.now(); // milliseconds — matches Meta's own fbc format
   function buildFbcFromRawFbclid(rawFbclid) {
     if (!rawFbclid) return '';
     return 'fb.1.' + PAGE_LOAD_TS + '.' + rawFbclid;
@@ -1476,12 +1476,6 @@ footer{
                   score >= CFG.TIER_LOW ? 'LOW' : 'JUNK';
 
     SCORE.saveHistory(score);
-
-    if (tier === 'JUNK') {
-      // Still open WhatsApp — just don't fire events
-      setTimeout(function () { window.open(CFG.WA_URL, '_blank', 'noopener,noreferrer'); }, 350);
-      return;
-    }
 
     // FIX-2: SINGLE event_id — used for BOTH Pixel and CAPI
     var eventId = uuid4();

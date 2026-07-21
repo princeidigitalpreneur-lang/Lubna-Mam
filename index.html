@@ -35,14 +35,12 @@ s.parentNode.insertBefore(t,s)}(window, document,'script',
 // stamping it as ph on every fbq() event including ViewContent.
 fbq('init', '1561758035693379', {}, { autoConfig: false });
 fbq('track', 'PageView');
-fbq('track', 'ViewContent', {
-  content_name: 'Lubna Fatima Landing Page',
-  content_category: 'Digital Mentor',
-  content_type: 'product'
-});
+// FIX-11: ViewContent moved into sendOpenEvent() so it carries an eventID.
+// Firing it here as well sent Meta TWO ViewContent per pageview, and this
+// copy had no eventID so it could never dedupe against the CAPI/other copy.
 </script>
 <noscript><img height="1" width="1" style="display:none"
-src="https://www.facebook.com/tr?id=1514243160478002&ev=PageView&noscript=1"
+src="https://www.facebook.com/tr?id=1561758035693379&ev=PageView&noscript=1"
 /></noscript>
 <!-- End Meta Pixel Code -->
 
@@ -1107,6 +1105,8 @@ footer{
     maxScrollPct    : 0,
     scrollReversals : 0,
     lastScrollY     : 0,
+    upAccumPx       : 0,
+    clientIp        : '',   // FIX-18: resolved async, empty until it arrives
     scrollPxTotal   : 0,
     scrollStartMs   : Date.now(),
     sectionsViewed  : [],
@@ -1238,6 +1238,7 @@ footer{
     SCORE.loadHistory();
     STATE.connectionSpeed = getConnection();
 
+    resolveClientIp();   // FIX-18: non-blocking, fire and forget
     fetchWeights();
     initTimeBuckets();
     initScrollTracking();
@@ -1280,10 +1281,14 @@ footer{
     setTimeout(function () {
       SCORE.raw.time = Math.min(1, 30 / 120);
       // Send to GAS so backend fires CAPI ViewContent (paired with Pixel)
-      sendToGAS('EngagedUser', uuid4(), { trigger: '30s', score: SCORE.compute() });
+      // FIX-19: ONE id shared by Pixel and CAPI so the pair deduplicates.
+      // The Pixel copy previously carried no eventID at all, so Meta counted
+      // the browser and server events as two separate people.
+      var euId = uuid4();
       if (typeof fbq === 'function') {
-        try { fbq('trackCustom', 'EngagedUser', { trigger: '30s' }); } catch (_) {}
+        try { fbq('trackCustom', 'EngagedUser', { trigger: '30s', eventID: euId }); } catch (_) {}
       }
+      sendToGAS('EngagedUser', 'time_bucket', euId, { trigger: '30s', score: SCORE.compute() });
     }, 30000);
 
     [60000, 120000].forEach(function (ms) {
@@ -1308,9 +1313,20 @@ footer{
 
         STATE.scrollPxTotal += Math.abs(window.scrollY - STATE.lastScrollY);
 
-        if (window.scrollY < STATE.lastScrollY - 80) {
-          STATE.scrollReversals++;
-          SCORE.raw.reversals = Math.min(1, STATE.scrollReversals * 0.15);
+        // FIX-14: the old test required an 80px jump within a SINGLE rAF frame.
+        // Mobile momentum scrolling moves ~10-30px per frame, so a real
+        // scroll-back almost never registered (fired on 1.7% of sessions).
+        // Accumulate upward movement across frames instead.
+        var dy = window.scrollY - STATE.lastScrollY;
+        if (dy < 0) {
+          STATE.upAccumPx += -dy;
+          if (STATE.upAccumPx >= 80) {
+            STATE.scrollReversals++;
+            SCORE.raw.reversals = Math.min(1, STATE.scrollReversals * 0.15);
+            STATE.upAccumPx = 0;
+          }
+        } else if (dy > 0) {
+          STATE.upAccumPx = 0;   // resumed scrolling down — start over
         }
         STATE.lastScrollY = window.scrollY;
 
@@ -1337,17 +1353,86 @@ footer{
   // ═══════════════════════════════════════════════════════════════════
   //  SECTION TRACKING — clean per-element observers
   // ═══════════════════════════════════════════════════════════════════
+  var SECTION_DEFS = [
+    { id: 'intro', weight: 1.5 }, { id: 'trust', weight: 2.0 },
+    { id: 'learn', weight: 2.5 }, { id: 'testi', weight: 2.5 },
+    { id: 'about', weight: 1.5 }, { id: 'final', weight: 2.5 },
+  ];
+  var SECTION_TOTAL_W = SECTION_DEFS.reduce(function (a, s) { return a + s.weight; }, 0);
+
+  // FIX-13: dwell including the section the visitor is inside RIGHT NOW.
+  // Previously dwell was only banked when a section was EXITED, so anyone who
+  // clicked WhatsApp (or left) while still inside a section contributed 0s.
+  function sectionDwellS(id) {
+    var sd = STATE.sectionDwellMap[id];
+    if (!sd) return 0;
+    return sd.totalS + (sd.enterMs ? (Date.now() - sd.enterMs) / 1000 : 0);
+  }
+
+  function refreshSectionScore() {
+    var seenW = 0;
+    STATE.sectionsViewed.forEach(function (sid) {
+      var s2 = SECTION_DEFS.find(function (x) { return x.id === sid; });
+      if (s2) seenW += s2.weight * Math.min(1, sectionDwellS(sid) / 20);
+    });
+    SCORE.raw.sections = Math.min(1, seenW / SECTION_TOTAL_W);
+    STATE.testiDwellS  = sectionDwellS('testi');
+  }
+
+  // FIX-17 [META DIAGNOSTIC — "improve Lead CAPI coverage to 75%"]:
+  //   EXACT mirror of computeGateScore() in Code.gs. The browser and the server
+  //   must reach the same Lead / LowIntentClick verdict, otherwise the Pixel
+  //   and CAPI events never pair up and the coverage rate collapses.
+  //   Uses the fixed weights, never the learned ones, because the server's
+  //   percentile table does not exist in the browser.
+  //   IF YOU CHANGE THIS, CHANGE computeGateScore() IN Code.gs TOO.
+  function gateScore() {
+    var w   = CFG.WEIGHTS;
+    var raw = Math.min(1, timeOnPage() / 120)              * w.time_on_page     +
+              Math.min(1, STATE.maxScrollPct / 100)        * w.scroll_depth     +
+              Math.min(1, STATE.scrollReversals / 4)       * w.scroll_reversals +
+              Math.min(1, STATE.sectionsViewed.length / 5) * w.section_attn     +
+              (STATE.copyDetected ? 1 : 0)                 * w.copy_detected;
+    if (STATE.isRepeat && STATE.visitCount >= 2 && SCORE.prevBest >= 50) {
+      raw = Math.min(1, raw + 0.06);
+    }
+    return Math.round(raw * 100);
+  }
+
+  // FIX-18 [META DIAGNOSTIC — "send IP address for View content"]:
+  //   Apps Script cannot read request headers, so client_ip_address was never
+  //   reaching Meta. The browser resolves its own public IP once and passes it
+  //   in the payload. Entirely optional: if this lookup fails we simply send
+  //   no IP, exactly as before — it can never block or delay an event.
+  function resolveClientIp() {
+    try {
+      var cached = sessionStorage.getItem('ak_ip');
+      if (cached) { STATE.clientIp = cached; return; }
+      fetch('https://api.ipify.org?format=json', { mode: 'cors' })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (j && typeof j.ip === 'string' && j.ip.length <= 45) {
+            STATE.clientIp = j.ip;
+            try { sessionStorage.setItem('ak_ip', j.ip); } catch (_) {}
+          }
+        })
+        .catch(function () {});
+    } catch (_) {}
+  }
+
+  // FIX-15: raw.time only advanced at the 30s/60s/120s timers, so a visitor who
+  // clicked at 45s or 400s was scored with a stale time bucket. Combined with
+  // dwell only banking on section exit, the client snapshot read far below the
+  // server's on 23 of 25 leads. Refresh every live signal before any read.
+  function refreshLiveSignals() {
+    SCORE.raw.time = Math.min(1, timeOnPage() / 120);
+    refreshSectionScore();
+  }
+
   function initSectionTracking() {
     if (!('IntersectionObserver' in window)) return;
 
-    var sections = [
-      { id: 'intro', weight: 1.5 }, { id: 'trust', weight: 2.0 },
-      { id: 'learn', weight: 2.5 }, { id: 'testi', weight: 2.5 },
-      { id: 'about', weight: 1.5 }, { id: 'final', weight: 2.5 },
-    ];
-    var totalW = sections.reduce(function (a, s) { return a + s.weight; }, 0);
-
-    sections.forEach(function (sec) {
+    SECTION_DEFS.forEach(function (sec) {
       var el = document.getElementById(sec.id);
       if (!el) return;
 
@@ -1357,20 +1442,17 @@ footer{
             STATE.sectionDwellMap[sec.id] || { totalS: 0, enterMs: 0 };
 
           if (entry.isIntersecting) {
-            sd.enterMs = Date.now();
-          } else if (sd.enterMs) {
-            sd.totalS += (Date.now() - sd.enterMs) / 1000;
-            sd.enterMs  = 0;
-            if (sec.id === 'testi') STATE.testiDwellS = sd.totalS;
+            // FIX-13: threshold [0,0.5] fires TWICE while entering and again
+            // while leaving. Re-stamping enterMs each time restarted the timer,
+            // which is why testimonial dwell never exceeded 0.2s on any row.
+            if (!sd.enterMs) sd.enterMs = Date.now();
+            // FIX-13: a section counts as viewed on ENTER, not on exit
             if (STATE.sectionsViewed.indexOf(sec.id) === -1) STATE.sectionsViewed.push(sec.id);
-
-            var seenW = 0;
-            STATE.sectionsViewed.forEach(function (sid) {
-              var s2 = sections.find(function (x) { return x.id === sid; });
-              if (s2) seenW += s2.weight * Math.min(1, (STATE.sectionDwellMap[sid] || { totalS: 0 }).totalS / 20);
-            });
-            SCORE.raw.sections = Math.min(1, seenW / totalW);
+          } else if (sd.enterMs) {
+            sd.totalS  += (Date.now() - sd.enterMs) / 1000;
+            sd.enterMs  = 0;
           }
+          refreshSectionScore();
         });
       }, { threshold: [0, 0.5] }).observe(el);
     });
@@ -1400,8 +1482,9 @@ footer{
     var fired = false;
     function onExit(trigger) {
       if (fired || STATE.waClicked) return; fired = true;
+      try { refreshLiveSignals(); } catch (_) {}   // FIX-15
       SCORE.saveHistory(SCORE.compute());
-      sendToGAS('ExitIntent', uuid4(), {
+      sendToGAS('ExitIntent', 'exit_intent', uuid4(), {
         trigger       : trigger,
         score_at_exit : SCORE.compute(),
         scroll_at_exit: STATE.maxScrollPct,
@@ -1463,6 +1546,8 @@ footer{
 
     if (STATE.hoverStartMs > 0) STATE.hesitationMs = Date.now() - STATE.hoverStartMs;
 
+    try { refreshLiveSignals(); } catch (_) {}   // FIX-15: score the CURRENT state
+
     var score   = SCORE.compute();     // snapshot once
     var value   = SCORE.toValue(score);
     var clickTs = Date.now();          // accurate click timestamp
@@ -1485,16 +1570,31 @@ footer{
                 '| testi:', STATE.testiDwellS.toFixed(1) + 's',
                 '| hesit:', STATE.hesitationMs + 'ms');
 
-    // 1. Meta Pixel — ONE event "Lead", same eventId as CAPI
+    // 1. Meta Pixel — ONE event, same eventId as CAPI
+    //
+    // FIX-16: a 3-second bouncer who taps WhatsApp used to fire a full "Lead"
+    // here. Meta then learned "find more people who tap WhatsApp" and went
+    // looking for more bouncers. Junk now fires a custom event that Meta does
+    // not optimise on, so only genuinely engaged visitors shape the audience.
+    //
+    // The server recomputes the score authoritatively and makes the same call.
+    // If the two ever disagree, the client scores LOWER than the server, so the
+    // worst case is a Pixel event missing for a Lead the CAPI still delivers —
+    // never a junk click being reported to Meta as a Lead.
     if (typeof fbq === 'function') {
       try {
-        fbq('track', 'Lead', {
-          value    : value,
-          currency : 'INR',
-          eventID  : eventId,   // FIX-2: same ID as CAPI below
-        });
-        // Contact fires separately — no value, no currency (it's not a lead event)
-        fbq('track', 'Contact', { eventID: eventId + '_contact' });
+        if (gateScore() >= CFG.TIER_LOW) {
+          fbq('track', 'Lead', {
+            value    : value,
+            currency : 'INR',
+            eventID  : eventId,   // FIX-2: same ID as CAPI below
+          });
+          // Contact fires separately — no value, no currency (it's not a lead event)
+          fbq('track', 'Contact', { eventID: eventId + '_contact' });
+        } else {
+          // No value, no currency — must stay out of value optimisation
+          fbq('trackCustom', 'LowIntentClick', { eventID: eventId });
+        }
       } catch (_) {}
     }
 
@@ -1521,7 +1621,14 @@ footer{
     if (typeof fbq === 'function') {
       try {
         // FIX-5: No value/currency on ViewContent — not a conversion event
-        fbq('track', 'ViewContent', { eventID: id });
+        // FIX-11: content_* metadata moved here from the head block, so the
+        // single ViewContent we fire carries both the metadata and an eventID.
+        fbq('track', 'ViewContent', {
+          content_name    : 'Lubna Fatima Landing Page',
+          content_category: 'Digital Mentor',
+          content_type    : 'product',
+          eventID         : id,
+        });
       } catch (_) {}
     }
     sendToGAS('ViewContent', 'page_load', id, {});
@@ -1537,8 +1644,19 @@ footer{
     if (STATE.eventsCount > 25) return;
     STATE.eventsCount++;
 
-    var phone  = normalizePhone('917757051143');
-    var phoneH = await hashStr(phone);
+    // FIX-12: fbevents.js writes the _fbp (and sometimes _fbc) cookie
+    // ASYNCHRONOUSLY, after init() has already run. Resolving them once at
+    // init meant first-time visitors sent no fbp at all — measured at 94%
+    // of first visits vs only 25% of repeat visits. Re-resolve on every send
+    // until we have a value. Still raw: never decoded, never modified.
+    //
+    // Wrapped: signal refresh is a NICE-TO-HAVE. If anything in here ever
+    // throws, the event must still reach Meta with whatever we already have.
+    try {
+      if (!STATE.fbp) STATE.fbp = getCookieRaw('_fbp');
+      if (!STATE.fbc) STATE.fbc = resolveFbc();
+      refreshLiveSignals();
+    } catch (_) {}
 
     var payload = {
       event_name   : eventName,
@@ -1548,8 +1666,8 @@ footer{
       fingerprint  : IDENTITY.fingerprint,
       visit_id     : IDENTITY.visitId,
       session_id   : IDENTITY.sessionId,
-      phone_hashed : phoneH,
       user_agent   : navigator.userAgent,
+      client_ip    : STATE.clientIp,   // FIX-18: '' if lookup failed — GAS validates
 
       // FIX-1 applied: fbc and fbp already resolved at init as raw cookie values
       // FIX-3 applied: fbc may have been constructed from raw fbclid if cookie absent

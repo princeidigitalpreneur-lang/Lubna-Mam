@@ -1379,15 +1379,29 @@ footer{
     STATE.testiDwellS  = sectionDwellS('testi');
   }
 
-  // FIX-17 [META DIAGNOSTIC — "improve Lead CAPI coverage to 75%"]:
-  //   EXACT mirror of computeGateScore() in Code.gs. The browser and the server
-  //   must reach the same Lead / LowIntentClick verdict, otherwise the Pixel
-  //   and CAPI events never pair up and the coverage rate collapses.
-  //   Uses the fixed weights, never the learned ones, because the server's
-  //   percentile table does not exist in the browser.
-  //   IF YOU CHANGE THIS, CHANGE computeGateScore() IN Code.gs TOO.
+  // FIX-20 [META DIAGNOSTIC — "improve Lead CAPI coverage / deduplication keys"]:
+  //   These are the FROZEN gate weights. They are a deliberate copy of the
+  //   defaults and must stay byte-for-byte equal to CFG.WEIGHTS in Code.gs.
+  //
+  //   Why a separate frozen copy: fetchWeights() overwrites CFG.WEIGHTS with the
+  //   server's LEARNED weights. gateScore() used to read CFG.WEIGHTS, so once
+  //   the weight engine learned anything, the browser's Lead/LowIntentClick
+  //   verdict drifted away from the server's (which always gates on defaults).
+  //   The two then disagreed near the threshold, the Pixel and CAPI Lead events
+  //   stopped pairing, and the coverage rate fell. Learning must move VALUE, not
+  //   the gate. The gate stays fixed on both sides so they ALWAYS agree.
+  var GATE_WEIGHTS = {
+    time_on_page    : 0.30,
+    scroll_depth    : 0.25,
+    scroll_reversals: 0.20,
+    section_attn    : 0.15,
+    copy_detected   : 0.10,
+  };
+
+  // EXACT mirror of computeGateScore() in Code.gs — same inputs, same weights,
+  // same threshold. IF YOU CHANGE THIS, CHANGE computeGateScore() IN Code.gs TOO.
   function gateScore() {
-    var w   = CFG.WEIGHTS;
+    var w   = GATE_WEIGHTS;
     var raw = Math.min(1, timeOnPage() / 120)              * w.time_on_page     +
               Math.min(1, STATE.maxScrollPct / 100)        * w.scroll_depth     +
               Math.min(1, STATE.scrollReversals / 4)       * w.scroll_reversals +
@@ -1706,6 +1720,18 @@ footer{
     var body = JSON.stringify(payload);
     var sent = false;
 
+    // FIX-21 [META DIAGNOSTIC — "server sending fewer Lead events than pixel"]:
+    //   The Lead is the money event. sendBeacon can silently fail to deliver
+    //   under memory pressure or right as the tab is backgrounded (the WA tab
+    //   opens 350ms later), which is why the server received a handful fewer
+    //   Leads than the Pixel. For Lead we no longer trust a single channel:
+    //   we fire BOTH sendBeacon and keepalive fetch. The server deduplicates on
+    //   event_id BEFORE it calls Meta, and Meta itself dedupes on event_id +
+    //   event_name, so two POSTs can never become two Meta Leads — but the odds
+    //   of at least one landing go way up. Non-critical events keep the cheap
+    //   beacon-then-fallback path so we don't double GAS traffic for everything.
+    var critical = (eventName === 'Lead');
+
     // Primary: sendBeacon
     if (typeof navigator.sendBeacon === 'function') {
       try {
@@ -1716,8 +1742,9 @@ footer{
       } catch (_) { sent = false; }
     }
 
-    // FIX-6: Fallback fetch with explicit Content-Type so GAS parses correctly
-    if (!sent) {
+    // FIX-6 / FIX-21: fetch as a fallback for every event, and ALWAYS as a
+    // second channel for the Lead even when the beacon reported success.
+    if (!sent || critical) {
       try {
         await fetch(CFG.GAS_URL, {
           method     : 'POST',
